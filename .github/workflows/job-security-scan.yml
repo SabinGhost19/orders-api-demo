@@ -46,13 +46,13 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - run: mkdir -p "$SECSCAN_DIR"
 
       - name: Checkout manifests for IaC scan
         if: ${{ inputs.manifests_repo != '' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ inputs.manifests_repo }}
           ref: ${{ inputs.manifests_ref }}
@@ -80,7 +80,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -149,7 +149,7 @@ jobs:
           {"gitleaks":"${GITLEAKS_VERSION:-}","semgrep":"${SEMGREP_VERSION:-}","checkov":"${CHECKOV_VERSION:-}"}
           EOF
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: secscan-raw
           path: |

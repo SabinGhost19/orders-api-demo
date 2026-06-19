@@ -18,7 +18,7 @@ jobs:
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Smoke build (api)
         working-directory: services/api
         run: |
@@ -29,7 +29,7 @@ jobs:
         run: |
           python -m py_compile main.py
           printf '{"exit_code":0,"linter":"py_compile","violation_count":0,"service":"worker"}' > /tmp/lint-worker.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with: { name: vbbi-lint-api, path: /tmp/lint-api.json }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with: { name: vbbi-lint-worker, path: /tmp/lint-worker.json }

@@ -55,8 +55,8 @@ jobs:
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: ${{ env.MANIFESTS_REPO }}
           ref: ${{ env.MANIFESTS_REF }}
@@ -69,13 +69,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: anchore/sbom-action/download-syft@v0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: /tmp/vbbi
           pattern: vbbi-*-${{ inputs.service }}
           merge-multiple: true
       # repo-wide reports, shared by api+worker.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: secscan-raw
           path: /tmp/secscan

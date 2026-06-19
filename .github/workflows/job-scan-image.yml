@@ -47,7 +47,7 @@ jobs:
         run: |
           printf '{"exit_code":0,"scanner":"trivy","image":"%s@%s","service":"%s"}' \
             "${IMAGE_REPO}" "${IMAGE_DIGEST}" "${SERVICE}" > "/tmp/scan-${SERVICE}.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: vbbi-scan-${{ inputs.service }}
           path: /tmp/scan-${{ inputs.service }}.json

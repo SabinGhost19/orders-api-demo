@@ -18,8 +18,8 @@ jobs:
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install test dependencies
@@ -47,7 +47,7 @@ jobs:
           cat /tmp/test-api.json /tmp/test-worker.json
           # Gate: fail if either service had a failing test.
           [ "$rc_api" -eq 0 ] && [ "$rc_worker" -eq 0 ]
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with: { name: vbbi-test-api, path: /tmp/test-api.json }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with: { name: vbbi-test-worker, path: /tmp/test-worker.json }
