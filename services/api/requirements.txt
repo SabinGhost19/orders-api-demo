@@ -1,0 +1,7 @@
+# Runtime deps. fastapi/uvicorn match demo-app (shared package nodes in GUAC);
+# cryptography==41.0.0 is pinned to the SAME vulnerable version analytics-worker
+# uses (CVE-2023-50782 / GHSA-jm77-qphf-c4w8) so the Blast Radius graph links
+# orders-api to analytics on that shared CVE node. Demo only — do not bump.
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+cryptography==41.0.0

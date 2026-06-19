@@ -1,0 +1,53 @@
+# Reusable job: real unit tests (pytest) for both services.
+# Produces the REAL test-{api,worker}.json that VBBI folds in as the
+# "unit-tests" step, and gates the build (build-push-* depend on it).
+# Test deps come from requirements-dev.txt only — never baked into the images.
+name: job-unit-tests
+
+on:
+  workflow_call: {}
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (StepSecurity)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: pip install -r services/api/requirements.txt -r requirements-dev.txt
+      - name: Run unit tests (api + worker)
+        run: |
+          set +e
+          ( cd services/api && python -m pytest -q --junitxml=/tmp/api.xml ); rc_api=$?
+          ( cd services/worker && python -m pytest -q --junitxml=/tmp/worker.xml ); rc_worker=$?
+          set -e
+          python - <<'PY'
+          import json, xml.etree.ElementTree as ET
+          def summarize(xml_path, service, out):
+              root = ET.parse(xml_path).getroot()
+              s = root if root.tag == 'testsuite' else root.find('testsuite')
+              tests = int(s.get('tests', 0))
+              failed = int(s.get('failures', 0)) + int(s.get('errors', 0))
+              with open(out, 'w') as fh:
+                  json.dump({"exit_code": 0 if failed == 0 else 1, "framework": "pytest",
+                             "service": service, "tests": tests,
+                             "passed": tests - failed, "failed": failed}, fh)
+          summarize('/tmp/api.xml', 'api', '/tmp/test-api.json')
+          summarize('/tmp/worker.xml', 'worker', '/tmp/test-worker.json')
+          PY
+          cat /tmp/test-api.json /tmp/test-worker.json
+          # Gate: fail if either service had a failing test.
+          [ "$rc_api" -eq 0 ] && [ "$rc_worker" -eq 0 ]
+      - uses: actions/upload-artifact@v4
+        with: { name: vbbi-test-api, path: /tmp/test-api.json }
+      - uses: actions/upload-artifact@v4
+        with: { name: vbbi-test-worker, path: /tmp/test-worker.json }

@@ -1,0 +1,165 @@
+# Orchestrator for the orders-api supply-chain pipeline (api + worker).
+#
+# No step logic here — each job lives in its own reusable workflow (job-*.yml).
+# The per-service jobs (build-push, scan-image, attestations, sign) call a single
+# parameterized reusable workflow twice (api + worker), which removes the
+# api/worker duplication while keeping each job small and reviewable.
+#
+# Config single-source: registry / owner / manifests coordinates are literal
+# inputs below (the `env` context is not allowed in `jobs.<id>.with`). Dynamic
+# values (image repo/digest) flow via needs.*.outputs.*.
+#
+# Keyless identities (cosign runs inside the reusable workflows): consumers
+# (zta-operator) must trust:
+#   attestations -> .../.github/workflows/job-attestations.yml@refs/heads/main
+#   signature    -> .../.github/workflows/job-sign.yml@refs/heads/main
+name: ci-cd-orders
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  build-metadata:
+    uses: ./.github/workflows/job-build-metadata.yml
+
+  unit-tests:
+    uses: ./.github/workflows/job-unit-tests.yml
+
+  # pre-build oss scan (gitleaks/semgrep/checkov), repo-wide; blocks on secrets.
+  security-scan:
+    uses: ./.github/workflows/job-security-scan.yml
+    with:
+      block_on_secrets: true
+      sast_block_severity: critical
+      manifests_repo: SabinGhost19/vulfastapi-manifests-samples
+      manifests_ref: main
+      manifests_subpath: orders-api
+    secrets: inherit
+
+  build-push-api:
+    needs: [build-metadata, unit-tests, security-scan]
+    uses: ./.github/workflows/job-build-push.yml
+    with:
+      registry: ghcr.io
+      image_owner: sabinghost19
+      image_name: orders-api
+      context: ./services/api
+    secrets: inherit
+
+  build-push-worker:
+    needs: [build-metadata, unit-tests, security-scan]
+    uses: ./.github/workflows/job-build-push.yml
+    with:
+      registry: ghcr.io
+      image_owner: sabinghost19
+      image_name: orders-worker
+      context: ./services/worker
+    secrets: inherit
+
+  scan-image-api:
+    needs: build-push-api
+    uses: ./.github/workflows/job-scan-image.yml
+    with:
+      image_repo: ${{ needs.build-push-api.outputs.image_repo }}
+      image_digest: ${{ needs.build-push-api.outputs.image_digest }}
+      service: api
+
+  scan-image-worker:
+    needs: build-push-worker
+    uses: ./.github/workflows/job-scan-image.yml
+    with:
+      image_repo: ${{ needs.build-push-worker.outputs.image_repo }}
+      image_digest: ${{ needs.build-push-worker.outputs.image_digest }}
+      service: worker
+
+  attestations-api:
+    needs: [build-metadata, unit-tests, build-push-api, scan-image-api, security-scan]
+    uses: ./.github/workflows/job-attestations.yml
+    with:
+      registry: ghcr.io
+      image_repo: ${{ needs.build-push-api.outputs.image_repo }}
+      image_digest: ${{ needs.build-push-api.outputs.image_digest }}
+      service: api
+      manifests_repo: SabinGhost19/vulfastapi-manifests-samples
+      manifests_ref: main
+      manifests_subpath: orders-api
+    secrets: inherit
+
+  attestations-worker:
+    needs: [build-metadata, unit-tests, build-push-worker, scan-image-worker, security-scan]
+    uses: ./.github/workflows/job-attestations.yml
+    with:
+      registry: ghcr.io
+      image_repo: ${{ needs.build-push-worker.outputs.image_repo }}
+      image_digest: ${{ needs.build-push-worker.outputs.image_digest }}
+      service: worker
+      manifests_repo: SabinGhost19/vulfastapi-manifests-samples
+      manifests_ref: main
+      manifests_subpath: orders-api
+    secrets: inherit
+
+  slsa-provenance-api:
+    needs: build-push-api
+    permissions:
+      id-token: write
+      packages: write
+      actions: read
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
+    with:
+      image: ${{ needs.build-push-api.outputs.image_repo }}
+      digest: ${{ needs.build-push-api.outputs.image_digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  slsa-provenance-worker:
+    needs: build-push-worker
+    permissions:
+      id-token: write
+      packages: write
+      actions: read
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
+    with:
+      image: ${{ needs.build-push-worker.outputs.image_repo }}
+      digest: ${{ needs.build-push-worker.outputs.image_digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  sign-api:
+    needs: [build-push-api, attestations-api]
+    uses: ./.github/workflows/job-sign.yml
+    with:
+      registry: ghcr.io
+      image_repo: ${{ needs.build-push-api.outputs.image_repo }}
+      image_digest: ${{ needs.build-push-api.outputs.image_digest }}
+    secrets: inherit
+
+  sign-worker:
+    needs: [build-push-worker, attestations-worker]
+    uses: ./.github/workflows/job-sign.yml
+    with:
+      registry: ghcr.io
+      image_repo: ${{ needs.build-push-worker.outputs.image_repo }}
+      image_digest: ${{ needs.build-push-worker.outputs.image_digest }}
+    secrets: inherit
+
+  bump-manifests:
+    needs: [sign-api, sign-worker, slsa-provenance-api, slsa-provenance-worker, build-push-api, build-push-worker]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    uses: ./.github/workflows/job-bump-manifests.yml
+    with:
+      api_image: ${{ needs.build-push-api.outputs.image_repo }}@${{ needs.build-push-api.outputs.image_digest }}
+      worker_image: ${{ needs.build-push-worker.outputs.image_repo }}@${{ needs.build-push-worker.outputs.image_digest }}
+      manifests_repo: SabinGhost19/vulfastapi-manifests-samples
+      manifests_ref: main
+      manifests_subpath: orders-api
+    secrets: inherit

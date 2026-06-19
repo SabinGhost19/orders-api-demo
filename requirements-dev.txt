@@ -1,0 +1,5 @@
+# Test-only dependencies for the unit-tests CI job. Deliberately NOT in any
+# service Dockerfile/requirements.txt, so the runtime images (and their SBOM /
+# CVE posture) are unaffected.
+pytest==8.3.3
+httpx==0.27.2

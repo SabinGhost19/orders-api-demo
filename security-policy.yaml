@@ -1,0 +1,34 @@
+# Source security policy attested by zta-policy-attestor.
+# Encoded as JSON predicate and attached to each pushed image (custom-zta-policy/v1).
+# The cluster-side SCA (`orders-verified-policy`) is the ENFORCED counterpart;
+# this file is the EVIDENCE the operator cross-checks against.
+#
+# orders-api is the platform's ZeroTrustSecret showcase, so the `secrets` block
+# is first-class here: it declares that the workload requires ZeroTrustSecrets
+# and pins the exact Vault path the ZeroTrustSecret (zts.yaml) reads from.
+workloadIdentity: "orders-api"
+securityBoundaries:
+  network:
+    allowGlobalInternet: false
+    allowedEgressNamespaces:
+      - database
+      - observability
+    restrictedPorts:
+      - 22
+      - 3389
+  secrets:
+    requireZeroTrustSecrets: true
+    allowedVaultPaths:
+      - secret/data/prod/orders-api/config
+  runtime:
+    runAsRoot: false
+provenance:
+  requireVoucher: true
+  minSlsaLevel: 3
+  trustedRepositories:
+    - SabinGhost19/orders-api-demo
+runtime:
+  onCompromise: Isolate
+  allowedPaths:
+    - /tmp
+    - /var/run

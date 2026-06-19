@@ -1,0 +1,9 @@
+# Pinned to the SAME deliberately-vulnerable versions analytics-worker uses, so
+# the GUAC Blast Radius graph correlates orders-worker with analytics-worker on
+# the shared package + CVE nodes:
+#   cryptography==41.0.0 -> CVE-2023-50782 / GHSA-jm77-qphf-c4w8   (affected)
+#   pyyaml==6.0          -> CVE-2020-14343                          (VEX not_affected here)
+# Demo only — never deploy for real; do NOT bump (that defeats the demo).
+cryptography==41.0.0
+requests==2.31.0
+pyyaml==6.0

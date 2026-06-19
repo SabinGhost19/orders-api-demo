@@ -1,0 +1,21 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://openvex.devsecops.licenta.ro/orders-api-demo",
+  "author": "platform-security@licenta.ro",
+  "timestamp": "2026-05-25T12:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "@id": "https://nvd.nist.gov/vuln/detail/CVE-2020-14343",
+        "name": "CVE-2020-14343"
+      },
+      "products": [
+        { "@id": "pkg:pypi/pyyaml@6.0" }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "orders-worker never calls yaml.load/full_load on untrusted input (the unsafe constructor path is unreachable), so CVE-2020-14343 is not exploitable here. Left as the single VEX-exempted node so the Blast Radius graph shows one GREEN verdict next to the still-affected CVE-2023-50782 (cryptography) shared with analytics-worker."
+    }
+  ]
+}
