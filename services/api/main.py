@@ -85,7 +85,7 @@ def _log_secret_presence() -> None:
 
 _log_secret_presence()
 
-
+@app.get("/healthy")
 @app.get("/health")
 @app.get("/healthz")
 def health() -> dict[str, str]:
