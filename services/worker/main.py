@@ -50,7 +50,7 @@ def main() -> int:
     while not _STOPPING:
         logger.info("processed orders batch")
         time.sleep(interval)
-    logger.info("orders-worker stopped")
+    logger.info("orders-worker has stopped")
     return 0
 
 
